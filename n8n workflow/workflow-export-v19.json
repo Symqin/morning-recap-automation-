@@ -1,0 +1,619 @@
+{
+  "name": "WA ke Google Sheets (File Bulanan)",
+  "nodes": [
+    {
+      "id": "9124e7c8-9145-4a82-8c9a-3c9d0e6d4b5c",
+      "name": "Webhook WA",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wa-to-sheet",
+        "responseMode": "onReceived"
+      },
+      "webhookId": "16d6a6d5-9e3e-4f58-8b79-993f4e0578b6"
+    },
+    {
+      "id": "bd4958ab-0419-4624-a3f0-f884ed842a94",
+      "name": "Parse & Hitung",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const MONTHS = ['JANUARI','FEBRUARI','MARET','APRIL','MEI','JUNI','JULI','AGUSTUS','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER'];\nconst bodyItem = $input.first().json;\nconst payload = (bodyItem.body && typeof bodyItem.body === 'object') ? bodyItem.body : bodyItem;\nconst src = (payload.data && typeof payload.data === 'object') ? payload.data : payload;\nconst msg = src || {};\nconst now = msg.timestamp ? new Date(Number(msg.timestamp) * 1000) : new Date();\nconst sheetName = now.getDate() + ' ' + MONTHS[now.getMonth()] + ' ' + now.getFullYear();\nconst monthFile = 'Morning Report ' + MONTHS[now.getMonth()] + ' ' + now.getFullYear();\nconst FIELD = { RUANGAN:'C','KAPA SITAS TTO':'D','KAPA SITAS RIIL':'E','SISA AWAL':'F',ISI:'G',KOSONG:'H',BARU:'J',PINDAHAN:'K',PULANG:'L','KASUS MEDIKAL':'M','KASUS BEDAH':'N','KASUS OBGYN':'O','CARA BAYAR JKN':'P','CARA BAYAR TUNAI':'Q','CARA BAYAR ASRNS':'R','LAMA RAWAT II':'S','LOS RS':'T',TOI:'U','RENCANA PULANG':'V',RUJUK:'W',PINDAH:'X','RENCANA PINDAH':'Y',MNGL:'Z','OPERASI ELEKTIF':'AB',CITO:'AC',POLI:'AD',HD:'AE',CRRT:'AF',BC:'AG','CATH LAB':'AH',PENUNJANG:'AI',ECHO:'AJ',USG:'AK',ENDOSCOPY:'AL',LAIN:'AM',PESAN:'AN',KETERANGAN:'AO'};\nconst ALIAS = { ruangan:'RUANGAN',ruang:'RUANGAN',kamar:'RUANGAN','kapa sitas tto':'KAPA SITAS TTO','kapasitas tto':'KAPA SITAS TTO','tto':'KAPA SITAS TTO','kapasitas':'KAPA SITAS TTO','kapa sitas riil':'KAPA SITAS RIIL','kapasitas riil':'KAPA SITAS RIIL','riil':'KAPA SITAS RIIL','sisa awal':'SISA AWAL','sisa':'SISA AWAL',isi:'ISI',kosong:'KOSONG',baru:'BARU',pindahan:'PINDAHAN',pulang:'PULANG','kasus medikal':'KASUS MEDIKAL',medikal:'KASUS MEDIKAL','kasus bedah':'KASUS BEDAH',bedah:'KASUS BEDAH','kasus obgyn':'KASUS OBGYN',obgyn:'KASUS OBGYN','cara bayar jkn':'CARA BAYAR JKN',jkn:'CARA BAYAR JKN','cara bayar tunai':'CARA BAYAR TUNAI',tunai:'CARA BAYAR TUNAI','cara bayar asrns':'CARA BAYAR ASRNS',asrns:'CARA BAYAR ASRNS','lama rawat ii':'LAMA RAWAT II','lama rawat':'LAMA RAWAT II','los rs':'LOS RS',los:'LOS RS',toi:'TOI','rencana pulang':'RENCANA PULANG',rujuk:'RUJUK',pindah:'PINDAH','rencana pindah':'RENCANA PINDAH',mnngl:'MNGL',mnl:'MNGL','operasi elektif':'OPERASI ELEKTIF',operasi:'OPERASI ELEKTIF',elektif:'OPERASI ELEKTIF',cito:'CITO',poli:'POLI',hd:'HD',crrt:'CRRT',bc:'BC','cath lab':'CATH LAB',cath:'CATH LAB',penunjang:'PENUNJANG',echo:'ECHO',usg:'USG',endoscopy:'ENDOSCOPY',endoskopi:'ENDOSCOPY',lain:'LAIN',lainnya:'LAIN',pesan:'PESAN',catatan:'PESAN',keterangan:'KETERANGAN',ket:'KETERANGAN'};\nconst sheetMap = {};\nconst bodyLines = String(msg.body||'').split(String.fromCharCode(10));\nfor (const rawLine of bodyLines) {\n  const line = rawLine.trim();\n  if (!line) continue;\n  let sepIdx = -1;\n  for (let si = 0; si < line.length; si++) {\n    const ch = line.charAt(si);\n    if (ch === ':' || ch === '|' || ch === String.fromCharCode(9)) { sepIdx = si; break; }\n  }\n  if (sepIdx <= 0) continue;\n  const k = line.slice(0, sepIdx).trim().toLowerCase();\n  const v = line.slice(sepIdx + 1).trim();\n  if (!k || !v) continue;\n  const c = ALIAS[k] || k;\n  const col = FIELD[c];\n  if (col) sheetMap[col] = v;\n}\nreturn [{ json: { sheetName, monthFile, ruangan: sheetMap['C']||'', sheetMap, waktu: now.toISOString(), grup:(msg.chatId||'').replace('@g.us',''), pengirim: msg.contact?.pushName||msg.contact?.name||msg.author||'', nomor:(msg.author||msg.from||'').split('@')[0] } }];"
+      }
+    },
+    {
+      "id": "01ee17e2-bcc5-4762-bc00-be8b3020dec9",
+      "name": "Cari File Bulan",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.googleapis.com/drive/v3/files?q=name='{{ $json.monthFile.replace(/\\'/g, \"\\\\'\") }}' and trashed=false&fields=files(id,name)",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Xy6uJiABAYLaZpQA",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "57d6f50a-48ed-4308-bced-12bd8599ccaa",
+      "name": "Tentukan File Bulan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const bodyItem = $input.first().json;\nconst data = (bodyItem.json && bodyItem.json.files) || bodyItem.files || [];\nconst parseOut = $('Parse & Hitung').first().json;\nconst target = parseOut.sheetName || '';\nconst monthFile = parseOut.monthFile || '';\nconst existing = data.find(f => String(f.name||'').trim() === String(monthFile).trim());\nconst fileId = existing ? existing.id : null;\nreturn [{ json: { fileId, needCreate: fileId ? 'no' : 'yes', target, monthFile, ruangan: parseOut.ruangan||'', sheetMap: parseOut.sheetMap||{}, sheetName: target } }];"
+      }
+    },
+    {
+      "id": "e91c56c8-6d50-43de-8241-6b396a1971c2",
+      "name": "File Bulan Ada?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.needCreate }}",
+              "rightValue": "no",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "8dd1fd4f-2cf1-482d-88fb-a9094e21ce2a",
+      "name": "Cek Daftar Tab",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1568,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/{{ $json.fileId }}?fields=sheets.properties(title,sheetId)",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Xy6uJiABAYLaZpQA",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "2c249edd-1613-4e04-8662-6f16218955a5",
+      "name": "Buat File Bulan (Copy)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        80
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://www.googleapis.com/drive/v3/files/1fesoZdoAjDZvfXM0PCFz35r-Er8qJpAiWzcmgorAnHg/copy",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: $json.monthFile }) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Xy6uJiABAYLaZpQA",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "4f655bed-6740-4253-942b-69fa1fedf25b",
+      "name": "Ekstrak FileId Baru",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        80
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const bodyItem = $input.first().json;\nconst data = bodyItem.json || bodyItem;\nconst decide = $('Tentukan File Bulan').first().json;\nconst newId = data.id || null;\nreturn [{ json: { fileId: newId, target: decide.target, monthFile: decide.monthFile, ruangan: decide.ruangan, sheetMap: decide.sheetMap, sheetName: decide.sheetName } }];"
+      }
+    },
+    {
+      "id": "a9c579fe-4c35-43ff-ac4c-aaebf8d0ba77",
+      "name": "Tentukan Tab",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const bodyItem = $input.first().json;\nconst sheets = (bodyItem.json && bodyItem.json.sheets) || bodyItem.sheets || [];\nconst parseOut = $('Tentukan File Bulan').first().json;\nlet fileId = parseOut.fileId || '';\ntry { fileId = $('Ekstrak FileId Baru').first().json.fileId || fileId; } catch (e) {}\nconst target = parseOut.target || '';\nconst exists = sheets.some(s => (s.properties?.title||'').trim() === String(target).trim());\nconst template = sheets.find(s => /JULI|AGUSTUS|SEPTEMBER|OKTOBER|NOVEMBER|DESEMBER|JANUARI|FEBRUARI|MARET|APRIL|MEI|JUNI/.test(s.properties?.title||'') && !/REKAP/i.test(s.properties?.title||''));\nreturn [{ json: { exists, hasTab: exists ? 'yes':'no', target, templateSheetId: template?.properties?.sheetId||null, fileId, ruangan: parseOut.ruangan||'', sheetMap: parseOut.sheetMap||{} } }];"
+      }
+    },
+    {
+      "id": "445e0e9b-9705-413b-88ac-a92af3ee9343",
+      "name": "Tab Sudah Ada?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2016,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.hasTab }}",
+              "rightValue": "yes",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ce093346-73f6-4743-8837-20fcea68dc39",
+      "name": "Baca Kolom Ruangan",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3136,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/{{ $('Tentukan Tab').first().json.fileId }}/values/{{ encodeURI(\"'\" + $('Tentukan Tab').first().json.target + \"'!C7:C60\") }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Xy6uJiABAYLaZpQA",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "294b1352-8479-4486-aa2c-053df226d595",
+      "name": "Copy Tab Template",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2240,
+        80
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/{{ $('Tentukan Tab').first().json.fileId }}/sheets/{{ $json.templateSheetId }}:copyTo",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ destinationSpreadsheetId: $json.fileId }) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Xy6uJiABAYLaZpQA",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "a4e810b5-389c-4e81-b9a4-64f0be1accce",
+      "name": "Ekstrak SheetId",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        80
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const bodyItem = $input.first().json;\nconst data = bodyItem.json || bodyItem;\nconst decide = $('Tentukan Tab').first().json;\nreturn [{ json: { target: decide.target, newSheetId: data.sheetId||null, fileId: decide.fileId } }];"
+      }
+    },
+    {
+      "id": "8101f7d5-4d0e-4558-af56-8b5ebf67c082",
+      "name": "Rename Tab",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2688,
+        80
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/{{ $('Tentukan Tab').first().json.fileId }}:batchUpdate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ requests: [{ updateSheetProperties: { properties: { sheetId: $json.newSheetId, title: $json.target }, fields: \"title\" } }] }) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Xy6uJiABAYLaZpQA",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "67f4170f-ffa4-4270-a44f-56969472fd6b",
+      "name": "Bersihkan Data Lama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2912,
+        80
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/{{ $('Tentukan Tab').first().json.fileId }}/values/{{ encodeURI(\"'\" + $('Tentukan Tab').first().json.target + \"'!A7:BL200\") }}:clear",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Xy6uJiABAYLaZpQA",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "f1046a8a-c5ad-4f54-a235-f15d90fb3b9c",
+      "name": "Cari Baris Ruangan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3360,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const bodyItem = $input.first().json;\nconst decide = $('Tentukan Tab').first().json;\nconst target = decide.target || '';\nconst room = decide.ruangan || '';\nconst sheetMap = decide.sheetMap || {};\nconst rows = (bodyItem.json && bodyItem.json.values) || bodyItem.values || [];\nlet rowIndex = -1;\nif (room) {\n  for (let i=0;i<rows.length;i++) {\n    const cell = rows[i];\n    const name = String(Array.isArray(cell) ? (cell[0] ?? '') : cell).trim();\n    if (name && name.toLowerCase() === String(room).trim().toLowerCase()) { rowIndex = 7 + i; break; }\n  }\n}\nconst cols = ['C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','AA','AB','AC','AD','AE','AF','AG','AH','AI','AJ','AK','AL','AM','AN','AO'];\nconst values = [];\nfor (const col of cols) values.push(sheetMap[col] ?? '');\nreturn [{ json: { target, rowIndex, range: \"'\" + target + \"'!C\" + rowIndex + \":AO\" + rowIndex, values: [values] } }];"
+      }
+    },
+    {
+      "id": "ad64e852-6752-4d86-a0fb-5904671216ca",
+      "name": "Ruangan Ditemukan?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3584,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.rowIndex }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "2d71de9a-9257-45b3-b834-48960bfe52fd",
+      "name": "Update Nilai Ruangan",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3808,
+        0
+      ],
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/{{ $('Tentukan Tab').first().json.fileId }}/values/{{ encodeURIComponent($json.range) }}?valueInputOption=USER_ENTERED",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ values: $json.values }) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Xy6uJiABAYLaZpQA",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook WA": {
+      "main": [
+        [
+          {
+            "node": "Parse & Hitung",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Hitung": {
+      "main": [
+        [
+          {
+            "node": "Cari File Bulan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cari File Bulan": {
+      "main": [
+        [
+          {
+            "node": "Tentukan File Bulan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tentukan File Bulan": {
+      "main": [
+        [
+          {
+            "node": "File Bulan Ada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "File Bulan Ada?": {
+      "main": [
+        [
+          {
+            "node": "Cek Daftar Tab",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buat File Bulan (Copy)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cek Daftar Tab": {
+      "main": [
+        [
+          {
+            "node": "Tentukan Tab",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buat File Bulan (Copy)": {
+      "main": [
+        [
+          {
+            "node": "Ekstrak FileId Baru",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ekstrak FileId Baru": {
+      "main": [
+        [
+          {
+            "node": "Cek Daftar Tab",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tentukan Tab": {
+      "main": [
+        [
+          {
+            "node": "Tab Sudah Ada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tab Sudah Ada?": {
+      "main": [
+        [
+          {
+            "node": "Baca Kolom Ruangan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Copy Tab Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baca Kolom Ruangan": {
+      "main": [
+        [
+          {
+            "node": "Cari Baris Ruangan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Copy Tab Template": {
+      "main": [
+        [
+          {
+            "node": "Ekstrak SheetId",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ekstrak SheetId": {
+      "main": [
+        [
+          {
+            "node": "Rename Tab",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rename Tab": {
+      "main": [
+        [
+          {
+            "node": "Bersihkan Data Lama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bersihkan Data Lama": {
+      "main": [
+        [
+          {
+            "node": "Baca Kolom Ruangan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cari Baris Ruangan": {
+      "main": [
+        [
+          {
+            "node": "Ruangan Ditemukan?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ruangan Ditemukan?": {
+      "main": [
+        [
+          {
+            "node": "Update Nilai Ruangan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "ffa64c93-751b-4a31-b37f-00d085afc267",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "tags": [],
+  "active": true
+}

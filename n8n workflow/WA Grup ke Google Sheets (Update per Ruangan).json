@@ -1,0 +1,104 @@
+{
+  "name": "WA Grup ke Google Sheets (Update per Ruangan)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wa-to-sheet",
+        "options": {}
+      },
+      "id": "70277e7e-7a40-49aa-b937-966a7a40c0ad",
+      "name": "Webhook WA",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "3e607828-79cd-4d99-94b2-96aaa641dc96"
+    },
+    {
+      "parameters": {
+        "jsCode": "const MONTHS = ['JANUARI','FEBRUARI','MARET','APRIL','MEI','JUNI','JULI','AGUSTUS','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER'];\nconst bodyItem = $input.first().json;\nconst src = bodyItem.data && typeof bodyItem.data === 'object' ? bodyItem.data : bodyItem;\nconst msg = src || {};\nconst text = String(msg.body || '');\nconst now = msg.timestamp ? new Date(Number(msg.timestamp) * 1000) : new Date();\nconst sheetName = now.getDate() + ' ' + MONTHS[now.getMonth()] + ' ' + now.getFullYear();\n\nconst FIELD_TO_COLUMN = { RUANGAN:'C','KAPA SITAS TTO':'D','KAPA SITAS RIIL':'E','SISA AWAL':'F',ISI:'G',KOSONG:'H','BOR (%)':'I',BARU:'J',PINDAHAN:'K',PULANG:'L','KASUS MEDIKAL':'M','KASUS BEDAH':'N','KASUS OBGYN':'O','CARA BAYAR JKN':'P','CARA BAYAR TUNAI':'Q','CARA BAYAR ASRNS':'R','LAMA RAWAT II':'S','LOS RS':'T',TOI:'U','RENCANA PULANG':'V',RUJUK:'W',PINDAH:'X','RENCANA PINDAH':'Y',MNGL:'Z','OPERASI ELEKTIF':'AB',CITO:'AC',POLI:'AD',HD:'AE',CRRT:'AF',BC:'AG','CATH LAB':'AH',PENUNJANG:'AI',ECHO:'AJ',USG:'AK',ENDOSCOPY:'AL',LAIN:'AM',PESAN:'AN',KETERANGAN:'AO'};\n\nconst ALIASES = { ruangan:'RUANGAN', ruang:'RUANGAN', kamar:'RUANGAN', 'kapasitas tto':'KAPA SITAS TTO', tto:'KAPA SITAS TTO', kapasitas:'KAPA SITAS TTO', 'kapasitas riil':'KAPA SITAS RIIL', riil:'KAPA SITAS RIIL', 'sisa awal':'SISA AWAL', sisa:'SISA AWAL', isi:'ISI', kosong:'KOSONG', bor:'BOR (%)', 'bor (%)':'BOR (%)', 'bor%':'BOR (%)', baru:'BARU', pindahan:'PINDAHAN', pulang:'PULANG', 'kasus medikal':'KASUS MEDIKAL', medikal:'KASUS MEDIKAL', 'kasus bedah':'KASUS BEDAH', bedah:'KASUS BEDAH', 'kasus obgyn':'KASUS OBGYN', obgyn:'KASUS OBGYN', 'cara bayar jkn':'CARA BAYAR JKN', jkn:'CARA BAYAR JKN', 'cara bayar tunai':'CARA BAYAR TUNAI', tunai:'CARA BAYAR TUNAI', 'cara bayar asrns':'CARA BAYAR ASRNS', asrns:'CARA BAYAR ASRNS', 'lama rawat ii':'LAMA RAWAT II', 'lama rawat':'LAMA RAWAT II', 'los rs':'LOS RS', los:'LOS RS', toi:'TOI', 'rencana pulang':'RENCANA PULANG', rujuk:'RUJUK', pindah:'PINDAH', 'rencana pindah':'RENCANA PINDAH', mnngl:'MNGL', mnl:'MNGL', 'operasi elektif':'OPERASI ELEKTIF', operasi:'OPERASI ELEKTIF', elektif:'OPERASI ELEKTIF', cito:'CITO', poli:'POLI', hd:'HD', crrt:'CRRT', bc:'BC', 'cath lab':'CATH LAB', cath:'CATH LAB', penunjang:'PENUNJANG', echo:'ECHO', usg:'USG', endoscopy:'ENDOSCOPY', endoskopi:'ENDOSCOPY', lain:'LAIN', lainnya:'LAIN', pesan:'PESAN', catatan:'PESAN', keterangan:'KETERANGAN', ket:'KETERANGAN' };\n\nconst lines = text.split(/\\r?\\n/);\nconst sheetMap = {};\nconst metadata = {\n  waktu: now.toISOString(),\n  grup: (msg.chatId || '').replace('@g.us', ''),\n  pengirim: msg.contact?.pushName || msg.contact?.name || msg.author || '',\n  nomor: (msg.author || msg.from || '').split('@')[0],\n  raw: msg.body || '',\n};\nfor (const line of lines) {\n  const m = line.match(/^\\s*([^:|\\t]+?)\\s*[:|\\t]\\s*(.*)$/);\n  if (m) {\n    const rawKey = m[1].trim().toLowerCase();\n    const val = m[2].trim();\n    if (!val) continue;\n    const canonical = ALIASES[rawKey] || rawKey;\n    const col = FIELD_TO_COLUMN[canonical];\n    if (col) sheetMap[col] = val;\n  }\n}\nreturn [{ json: { sheetName, sheetMap, ruangan: sheetMap['C'] || '', ...metadata } }];"
+      },
+      "id": "26902355-dcfa-4912-add4-a1ae2c03a8cd",
+      "name": "Parse & Hitung Tab",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1fesoZdoAjDZvfXM0PCFz35r-Er8qJpAiWzcmgorAnHg"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "",
+          "cachedResultName": ""
+        }
+      },
+      "id": "b3f0645a-b3f5-4b99-84b0-4f733edfb341",
+      "name": "Update Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        0
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Xy6uJiABAYLaZpQA",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook WA": {
+      "main": [
+        [
+          {
+            "node": "Parse & Hitung Tab",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Hitung Tab": {
+      "main": [
+        [
+          {
+            "node": "Update Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "156441c1-14fb-4121-8072-5885926cae87",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "bdd2eeb96a85fd2bc44d1e656ccdaff64c4d132bfaeef34ffa36ec3413c69e02"
+  },
+  "nodeGroups": [],
+  "id": "H4Ei0DaBE3N5kSEm",
+  "tags": []
+}
