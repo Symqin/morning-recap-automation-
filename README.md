@@ -256,3 +256,5 @@ Kolom **BOR (%)** dihapus dari pemetaan — dihitung otomatis di Google Sheets.
 ```
 opencode -s ses_0004293a2ffeK3glVwTqPspCo7
 ```
+
+opencode -s ses_fe282e252ffekM5nfGyKCjpsEO (home server)
